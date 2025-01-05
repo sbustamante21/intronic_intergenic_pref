@@ -1,4 +1,2 @@
-.gff
-.txt
-.out
-.png
+pipeline/genomes
+pipeline/results
