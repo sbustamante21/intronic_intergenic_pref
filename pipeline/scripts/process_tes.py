@@ -28,7 +28,7 @@ def occ_report(dataset1, intr_len, length_intergenic, intergenic):
 
     all_lens = 0
     all_intergenics = 0
-    titles = ["SINE", "LINE", "LTR", "DNA", "RC", "Retroposon"]
+    titles = ["SINE", "LINE", "LTR", "DNA"]
     intergenics = []
     intronics = []
 
@@ -85,8 +85,6 @@ def process_tes(dataset):
     line_lengths = []
     ltr_lengths = []
     dna_lengths = []
-    rc_lengths = []
-    retroposon_lengths = []
 
     # Classify lengths by TE type
     for length, te_type in lengths:
@@ -96,14 +94,10 @@ def process_tes(dataset):
             line_lengths.append(length)
         elif te_type == "LTR":
             ltr_lengths.append(length)
-        elif te_type == "DNA":
+        elif te_type == "DNA" or te_type == "RC" or te_type == "Retroposon":
             dna_lengths.append(length)
-        elif te_type == "RC":
-            rc_lengths.append(length)
-        elif te_type == "Retroposon":
-            retroposon_lengths.append(length)
     
-    return [sine_lengths, line_lengths, ltr_lengths, dna_lengths, rc_lengths, retroposon_lengths]
+    return [sine_lengths, line_lengths, ltr_lengths, dna_lengths]
 
 def calculate_class_data(data):
     class_lengths = []
@@ -134,12 +128,12 @@ def plot_histograms_overlapping(data1, data2, supertitle, stats1, stats2, output
     class_lengths1, class_freqs1 = stats1
     class_lengths2, class_freqs2 = stats2
 
-    # Create a 2x3 grid of subplots
-    fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+    # Create a 2x2 grid of subplots
+    fig, axs = plt.subplots(2, 2, figsize=(15, 10))
     axs = axs.flatten()
 
     # Data and titles for subplots
-    titles = ["SINE", "LINE", "LTR", "DNA", "RC", "Retroposon"]
+    titles = ["SINE", "LINE", "LTR", "DNA"]
 
     # Plot each histogram
     for ax, lengths1, lengths2, title, mean_length1, n_elements1, mean_length2, n_elements2 in zip(
@@ -261,7 +255,7 @@ def save_heatmap(df, key_column, filename="heatmap.png", title="Heatmap of Divis
         figsize (tuple): The size of the figure.
     """
     # Set the index to the key column
-    heatmap_data = df.set_index(key_column)
+    heatmap_data = df.set_index([key_column])
 
     # Plot the heatmap
     plt.figure(figsize=figsize)
@@ -287,7 +281,8 @@ def save_heatmap(df, key_column, filename="heatmap.png", title="Heatmap of Divis
 
 
 def main(input_dir, organism_name):
-    titles = ["SINE", "LINE", "LTR", "DNA", "RC", "Retroposon"]
+    #titles = ["SINE", "LINE", "LTR", "DNA", "RC", "Retroposon"]
+    titles = ["SINE", "LINE", "LTR", "DNA"]
 
     pcgenes_df = pd.read_csv(f"{input_dir}/em_per_gene.bed", sep="\t", header=None)
 
@@ -335,10 +330,16 @@ def main(input_dir, organism_name):
     # ocupancias intronicas de las clases de TE segun el orden de titles, y las ocupancias intergenicas de las clases de TE segun el orden de titles
     # La sumatoria de cada lista es el total de ocupancia para cada zona
     occ_intronic, occ_intergenic = occ_report(intron_lengths, only_intron_lengths, genome_intergenic_size, intergenic_lengths)
+    print(occ_intronic)
+    print("*"*100)
+    print(occ_intergenic)
     occ_df = pd.DataFrame(data=[occ_intronic, occ_intergenic], index=["Intronic", "Intergenic"], columns=titles)
     preference = occ_df.loc["Intronic"] / occ_df.loc["Intergenic"]
     # Add the preference row to the DataFrame
     occ_df.loc["Preference"] = preference
+
+    print(occ_df)
+
     occ_df.to_csv(f"{input_dir}/occ_report.tsv", sep="\t")
 
     # t-test

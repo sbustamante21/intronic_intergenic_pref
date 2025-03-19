@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Ensure arguments are provided
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <GFF_file> <RepeatMasker_file> <output_directory>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <GFF_file> <RepeatMasker BED file> <output_directory>  <Chromosome Lengths file>"
     exit 1
 fi
 
@@ -10,18 +10,13 @@ fi
 genome=$1
 rm_file=$2
 output_dir=$3
+chr_lengths=$4
 
 # Create the output directory if it doesn't exist
 mkdir -p "$output_dir"
 
 # Parsear la salida del repeatmasker
-tail -n +4 "$rm_file" | mawk '{print $5, $6, $7, $10, ".", $9, $11}' | sed 's/ /\t/g' | sed 's/\tC\t/\t-\t/g' > "$output_dir/rmsk_pre.bed"
-mawk '{if ($7 ~ /(SINE|LINE|LTR|DNA|RC|Retroposon)/) print $0}' "$output_dir/rmsk_pre.bed" > "$output_dir/rmsk_onlyte.bed"
-sed 's/\tDNA\t/\tDNA\/DNA_LTR_exNULL\t/g' "$output_dir/rmsk_onlyte.bed" > "$output_dir/rmsk_pre1.bed"
-sed 's/\tLTR\t/\tLTR\/DNA_LTR_exNULL\t/g' "$output_dir/rmsk_pre1.bed" > "$output_dir/rmsk_pre2.bed"
-grep -v "?" "$output_dir/rmsk_pre2.bed" > "$output_dir/rmsk_parsed.bed"
-
-rm "$output_dir/rmsk_pre.bed" "$output_dir/rmsk_onlyte.bed" "$output_dir/rmsk_pre1.bed" "$output_dir/rmsk_pre2.bed"
+cp "$rm_file" "$output_dir/rmsk_parsed.bed"
 
 # Sacar todos los genes
 mawk '$3 == "gene"' "$genome" > "$output_dir/genes.gff"
@@ -48,3 +43,5 @@ bedtools intersect -f 1 -wa -wb -a "$output_dir/rmsk_parsed.bed" -b "$output_dir
 
 # Saber cuantos elementos moviles hay en zonas intergenicas, nivel de genoma completo
 bedtools intersect -v -a "$output_dir/rmsk_parsed.bed" -b "$output_dir/genes.bed" > "$output_dir/em_intergenic.bed"
+
+cp "$chr_lengths" "$output_dir/chromosome_lengths.txt"
