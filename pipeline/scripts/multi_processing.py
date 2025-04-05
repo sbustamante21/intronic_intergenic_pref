@@ -56,7 +56,7 @@ def main():
     for df in [df_occ, df_length, df_freq]:
         plt.figure(figsize=(10,9))
         sns.heatmap(df, cmap="coolwarm", annot=True, fmt=".2f", center=1)
-        plt.savefig(f"{args.base_dir}/comparisons/{i}.png")
+        plt.savefig(f"{args.base_dir}/comparisons/{i}.svg", format="svg")
         plt.close()
         i = i + 1
 

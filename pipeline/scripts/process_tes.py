@@ -7,7 +7,7 @@ import argparse
 import seaborn as sns
 
 def feat_len(dataset):
-    return [row[2] - row[1] for _, row in dataset.iterrows()]
+    return [(row[2] - row[1]+1) for _, row in dataset.iterrows()]
 
 def count_genes_per_chr(chr_name, df, chr_col_index):
     return chr_name, df[df[chr_col_index] == chr_name].shape[0]
@@ -154,7 +154,7 @@ def plot_histograms_overlapping(data1, data2, supertitle, stats1, stats2, output
     plt.tight_layout()
     
     # Save the plot to the specified file
-    plt.savefig(output_file)
+    plt.savefig(output_file, format="svg")
 
     # Optionally, close the plot to free up memory
     plt.close()
@@ -243,7 +243,7 @@ def pref_df_to_csv(df, filename, input_dir):
     # Save DataFrame to a CSV file    
     df.to_csv(f"{input_dir}/{filename}.csv", sep="\t", index=False)
 
-def save_heatmap(df, key_column, filename="heatmap.png", title="Heatmap of Division Results", figsize=(10, 8)):
+def save_heatmap(df, key_column, filename="heatmap.svg", title="Heatmap of Division Results", figsize=(10, 8)):
     """
     Create and save a heatmap from the resulting dataframe where each row corresponds to a chromosome.
     
@@ -276,7 +276,7 @@ def save_heatmap(df, key_column, filename="heatmap.png", title="Heatmap of Divis
 
     # Save the plot
     plt.tight_layout()
-    plt.savefig(filename, dpi=300)  # Save with high resolution
+    plt.savefig(filename, dpi=300, format="svg")  # Save with high resolution
     plt.close()  # Close the plot to free up memory
 
 
@@ -284,33 +284,37 @@ def main(input_dir, organism_name):
     #titles = ["SINE", "LINE", "LTR", "DNA", "RC", "Retroposon"]
     titles = ["SINE", "LINE", "LTR", "DNA"]
 
+    # Deberian ser protein-coding genes
     pcgenes_df = pd.read_csv(f"{input_dir}/em_per_gene.bed", sep="\t", header=None)
 
     introns_df = pd.read_csv(f"{input_dir}/em_per_intron.bed", sep="\t", header=None)
-    intron_lengths = process_tes(introns_df)
+    intron_lengths = process_tes(introns_df) # Lista con listas de los largos de los features
 
     intergenic_df = pd.read_csv(f"{input_dir}/em_intergenic.bed", sep="\t", header=None)
     intergenic_lengths = process_tes(intergenic_df)
 
     only_intron_df = pd.read_csv(f"{input_dir}/introns.bed", sep="\t", header=None)
-    only_intron_lengths = sum(feat_len(only_intron_df))
+    only_intron_lengths = sum(feat_len(only_intron_df)) # Todas las bases dedicadas a ser intron (de protein_coding)
 
-    only_gene_df = pd.read_csv(f"{input_dir}/genes.bed", sep="\t", header=None)
-    only_gene_lengths = sum(feat_len(only_gene_df))
+    all_intron_df = pd.read_csv(f"{input_dir}/introns_all.bed", sep="\t", header=None)
+    only_intron_all_lengths = sum(feat_len(all_intron_df)) # todas las bases dedicadas a ser intron (de todos los intrones)
+
+    #only_gene_df = pd.read_csv(f"{input_dir}/genes.bed", sep="\t", header=None)
+    #only_gene_lengths = sum(feat_len(only_gene_df)) # Deberian ser todas las bases dedicadas a non-protein_coding
 
     chr_lengths_df = pd.read_csv(f"{input_dir}/chromosome_lengths.txt", sep="\t", header=None, names=["chr", "length"])
-    chr_lengths = chr_lengths_df.set_index("chr").to_dict()["length"]
+    chr_lengths = chr_lengths_df.set_index("chr").to_dict()["length"] # Diccionario de largos de cada cromosoma
 
     genes_per_chr = parallel_gene_count(chr_lengths, pcgenes_df, chr_col_index=0)
 
     genome_size = sum(chr_lengths.values())
-    genome_intergenic_size = genome_size - only_intron_lengths
+    genome_intergenic_size = genome_size - only_intron_all_lengths # usarlo con el largo de los intrones en total 
 
     # Histogramas intronicos e intergenicos
     intron_lengths_graph, intron_freqs_graph = calculate_class_data(intron_lengths)
     intergenic_lengths_graph, intergenic_freqs_graph = calculate_class_data(intergenic_lengths)
 
-    plot_histograms_overlapping(intron_lengths, intergenic_lengths, f"{organism_name}, intronic vs intergenic", (intron_lengths_graph, intron_freqs_graph), (intergenic_lengths_graph, intergenic_freqs_graph), f"{input_dir}/histograms_overlapping.png")
+    plot_histograms_overlapping(intron_lengths, intergenic_lengths, f"{organism_name}, intronic vs intergenic", (intron_lengths_graph, intron_freqs_graph), (intergenic_lengths_graph, intergenic_freqs_graph), f"{input_dir}/histograms_overlapping.svg")
 
     # Length report
     length_df = pd.DataFrame(data=[intron_lengths_graph, intergenic_lengths_graph], index=["Intronic", "Intergenic"], columns=titles)
@@ -365,12 +369,12 @@ def main(input_dir, organism_name):
     occs_pref_chr = make_pref_df(df_occs_per_chr_intronic, df_occs_per_chr_intergenic, "Chromosome")
     pref_df_to_csv(occs_pref_chr, "occ_per_chr_intronic_over_intergenic", input_dir)
 
-    save_heatmap(occs_pref_chr, "Chromosome", filename=f"{input_dir}/heatmap_occs_per_chr_intronic_over_intergenic.png", title=f"Heatmap of Occupancy Preference by Chromosome in {organism_name}")
+    save_heatmap(occs_pref_chr, "Chromosome", filename=f"{input_dir}/heatmap_occs_per_chr_intronic_over_intergenic.svg", title=f"Heatmap of Occupancy Preference by Chromosome in {organism_name}")
 
     freqs_pref_chr = make_pref_df(df_freqs_per_chr_intronic, df_freqs_per_chr_intergenic, "Chromosome")
     pref_df_to_csv(freqs_pref_chr, "freq_per_chr_intronic_over_intergenic", input_dir)
 
-    save_heatmap(freqs_pref_chr, "Chromosome", filename=f"{input_dir}/heatmap_freqs_per_chr_intronic_over_intergenic.png", title=f"Heatmap of Frequency Preference by Chromosome in {organism_name}")
+    save_heatmap(freqs_pref_chr, "Chromosome", filename=f"{input_dir}/heatmap_freqs_per_chr_intronic_over_intergenic.svg", title=f"Heatmap of Frequency Preference by Chromosome in {organism_name}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process genomic data")
